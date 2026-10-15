@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Point of sale | Marina Bay's Cafe</title>
+<meta name="theme-color" content="#17435a">
+<link rel="icon" type="image/png" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/counter-apple-touch-icon.png">
+<link rel="stylesheet" href="app.css">
+<style>
+  .cartbar { border-top: 2px solid var(--ink); background: #fff; padding-bottom: env(safe-area-inset-bottom); }
+  .cartbar button { display: flex; align-items: center; justify-content: space-between; width: 100%; border: none; background: var(--teal); color: #fff; font: inherit; font-size: 17px; padding: 14px 16px; cursor: pointer; }
+  .cartbar button:disabled { background: var(--soft); color: var(--muted); opacity: 1; }
+  .cartbar b { font-weight: 700; }
+  .catnote { padding: 10px 16px 4px; font-size: 13px; color: var(--muted); }
+  .line { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .line .l1 { display: flex; justify-content: space-between; gap: 12px; }
+  .line .l1 b { font-weight: 650; }
+  .line .meta { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .line .l3 { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .totalrow { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 16px; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--line); }
+  .note-in { width: 100%; height: 42px; border: 1.5px solid #c9c1b5; border-radius: 6px; padding: 0 10px; font: inherit; }
+  .note-in:focus { outline: none; border-color: var(--teal); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <a href="index.html" aria-label="Home" style="display:flex"><img src="icons/logo-64.png" alt=""></a>
+    <div><b>Marina Bay's Cafe</b><span class="sub">Point of sale</span></div>
+    <nav class="apps" aria-label="Apps"><a href="menu.html">Menu</a><a href="index.html">All apps</a></nav>
+  </div>
+
+  <div class="searchbar"><input id="q" type="search" placeholder="Search the menu" autocomplete="off"></div>
+  <div class="chips" id="chips"></div>
+  <main id="main"><div id="items"></div></main>
+
+  <div class="cartbar"><button id="openCart" disabled><span id="cartCount">No items yet</span><b class="num" id="cartTotal">₱0</b></button></div>
+
+  <div class="shade" id="shade"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="menu-default.js"></script>
+<script src="app-data.js"></script>
+<script>
+(function () {
+  var D = window.MBData, esc = D.esc, $ = function (id) { return document.getElementById(id); };
+  var CART_KEY = 'marinabays_cart_v1';
+  var cart = [];
+  try { cart = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch (e) { cart = []; }
+  function saveCart() { try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch (e) {} }
+
+  /* ---------- menu list ---------- */
+  var view = 'best';
+  function chipList() {
+    var m = D.getMenu(), arr = [{ id: 'best', name: 'Best sellers' }];
+    m.categories.forEach(function (c) { arr.push({ id: c.id, name: c.name }); });
+    if ((m.addonGroups || []).length) arr.push({ id: 'extras', name: 'Extras' });
+    return arr;
+  }
+  function paintChips() {
+    $('chips').innerHTML = chipList().map(function (c) {
+      return '<button class="chip' + (c.id === view && !$('q').value.trim() ? ' on' : '') + '" data-v="' + esc(c.id) + '">' + esc(c.name) + '</button>';
+    }).join('');
+  }
+  function rowHtml(it, showCat) {
+    var c = D.cat(it.cat), sub = it.desc || '';
+    if (showCat && c) sub = (sub ? sub + ' · ' : '') + c.name;
+    return '<button class="prow' + (it.soldOut ? ' off' : '') + '" data-id="' + esc(it.id) + '"><div class="what"><b>' + esc(it.name) +
+      (it.best ? '<span class="badge best">Best</span>' : '') + '</b>' + (sub ? '<span class="s">' + esc(sub) + '</span>' : '') +
+      '</div><div class="r num">' + (it.soldOut ? 'Sold out' : D.priceText(it)) + '</div></button>';
+  }
+  function paintItems() {
+    var m = D.getMenu(), q = $('q').value.trim().toLowerCase(), h = '', list;
+    if (q) {
+      list = m.items.filter(function (it) {
+        var c = D.cat(it.cat);
+        return (it.name + ' ' + (it.desc || '') + ' ' + (c ? c.name : '')).toLowerCase().indexOf(q) !== -1;
+      });
+      h = list.map(function (it) { return rowHtml(it, true); }).join('') || '<div class="empty">Nothing matches "' + esc(q) + '".</div>';
+    } else if (view === 'best') {
+      list = m.items.filter(function (it) { return it.best; });
+      h = list.map(function (it) { return rowHtml(it, true); }).join('') || '<div class="empty">No best sellers marked yet. You can mark them in the Menu editor.</div>';
+    } else if (view === 'extras') {
+      m.addonGroups.forEach(function (g) {
+        h += '<div class="sect">' + esc(g.name) + '</div>';
+        h += (g.items || []).map(function (a) {
+          return '<button class="prow" data-ex="' + esc(g.id + '|' + a.id) + '"><div class="what"><b>' + esc(a.name) + '</b>' +
+            (a.desc ? '<span class="s">' + esc(a.desc) + '</span>' : '') + '</div><div class="r num">' + D.pesoShort(a.price) + '</div></button>';
+        }).join('');
+      });
+    } else {
+      var c = D.cat(view);
+      list = D.itemsIn(view);
+      h = (c && c.note ? '<div class="catnote">' + esc(c.note) + '</div>' : '') +
+        (list.map(function (it) { return rowHtml(it, false); }).join('') || '<div class="empty">No items in this section.</div>');
+    }
+    $('items').innerHTML = h;
+    $('main').scrollTop = 0;
+  }
+  $('chips').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-v]'); if (!b) return;
+    view = b.getAttribute('data-v'); $('q').value = ''; paintChips(); paintItems();
+    if (b.scrollIntoView) b.scrollIntoView({ inline: 'center', block: 'nearest' });
+  });
+  $('q').addEventListener('input', function () { paintChips(); paintItems(); });
+
+  $('items').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-id]');
+    if (b) { openItem(b.getAttribute('data-id')); return; }
+    var x = e.target.closest('button[data-ex]');
+    if (x) {
+      var p = x.getAttribute('data-ex').split('|'), g = D.getMenu().addonGroups.filter(function (q) { return q.id === p[0]; })[0];
+      var a = g && g.items.filter(function (q) { return q.id === p[1]; })[0];
+      if (a) { addLine({ name: a.name, opt: '', price: Number(a.price) || 0, addons: [], note: '', qty: 1, k: 'ex|' + g.id + '|' + a.id }); D.toast('Added ' + a.name); }
+    }
+  });
+
+  /* ---------- cart ---------- */
+  function lineUnit(l) { var t = Number(l.price) || 0; (l.addons || []).forEach(function (a) { t += Number(a.p) || 0; }); return t; }
+  function lineTotal(l) { return lineUnit(l) * l.qty; }
+  function cartTotal() { var t = 0; cart.forEach(function (l) { t += lineTotal(l); }); return t; }
+  function cartCount() { var n = 0; cart.forEach(function (l) { n += l.qty; }); return n; }
+  function addLine(line) {
+    var same = cart.filter(function (l) { return l.k === line.k; })[0];
+    if (same) same.qty += line.qty; else cart.push(line);
+    saveCart(); paintBar();
+  }
+  function paintBar() {
+    var n = cartCount();
+    $('openCart').disabled = n === 0;
+    $('cartCount').textContent = n ? 'View order · ' + n + (n === 1 ? ' item' : ' items') : 'No items yet';
+    $('cartTotal').textContent = n ? D.pesoShort(cartTotal()) : '₱0';
+  }
+
+  /* ---------- sheet ---------- */
+  var mode = '', sel = null;
+  function openSheet() { $('shade').classList.add('on'); }
+  function closeSheet() { $('shade').classList.remove('on'); mode = ''; sel = null; }
+  $('shade').addEventListener('click', function (e) { if (e.target === $('shade')) closeSheet(); });
+
+  function openItem(id) {
+    var it = D.item(id); if (!it || it.soldOut) return;
+    if (!it.options || !it.options.length) { D.toast('No price set for this item'); return; }
+    var groups = D.addonsFor(it.cat).filter(function (g) { return g.items && g.items.length; });
+    if (it.options.length === 1 && !groups.length) {
+      addLine({ name: it.name, opt: D.plainOption(it) ? '' : it.options[0].label, price: Number(it.options[0].price) || 0, addons: [], note: '', qty: 1, k: it.id + '|0||' });
+      D.toast('Added ' + it.name); return;
+    }
+    mode = 'item'; sel = { id: id, opt: 0, addons: {}, note: '', qty: 1 };
+    renderItem(); openSheet();
+  }
+  function itemTotal() {
+    var it = D.item(sel.id), t = Number(it.options[sel.opt].price) || 0;
+    D.addonsFor(it.cat).forEach(function (g) { g.items.forEach(function (a) { if (sel.addons[g.id + '|' + a.id]) t += Number(a.price) || 0; }); });
+    return t * sel.qty;
+  }
+  function renderItem() {
+    var it = D.item(sel.id), h = '';
+    h += '<div class="sh-head"><div class="t"><b>' + esc(it.name) + '</b>' + (it.desc ? '<span>' + esc(it.desc) + '</span>' : '') +
+      '</div><button class="icon-btn" data-close aria-label="Close">&times;</button></div><div class="sh-body">';
+    if (!D.plainOption(it)) {
+      h += '<div class="sect">Size</div>';
+      it.options.forEach(function (o, i) {
+        h += '<label class="opt"><input type="radio" name="opt" value="' + i + '"' + (i === sel.opt ? ' checked' : '') + '><span class="n">' + esc(o.label) +
+          '</span><span class="p num">' + D.pesoShort(o.price) + '</span></label>';
+      });
+    }
+    D.addonsFor(it.cat).forEach(function (g) {
+      if (!g.items || !g.items.length) return;
+      h += '<div class="sect">' + esc(g.name) + '</div>';
+      g.items.forEach(function (a) {
+        var key = g.id + '|' + a.id;
+        h += '<label class="opt"><input type="checkbox" data-a="' + esc(key) + '"' + (sel.addons[key] ? ' checked' : '') + '><span class="n">' + esc(a.name) +
+          (a.desc ? '<small>' + esc(a.desc) + '</small>' : '') + '</span><span class="p num">+' + D.pesoShort(a.price) + '</span></label>';
+      });
+    });
+    h += '<div class="block" style="margin-top:10px"><label for="selNote">Note</label><input class="note-in" id="selNote" type="text" maxlength="60" placeholder="For example, less sugar" value="' + esc(sel.note) + '" autocomplete="off"></div>';
+    h += '</div><div class="sh-foot"><div class="stepper"><button data-q="-1" aria-label="Fewer">&minus;</button><b id="selQty" class="num">' + sel.qty +
+      '</b><button data-q="1" aria-label="More">+</button></div><button class="primary" id="selAdd">Add to order · ' + D.pesoShort(itemTotal()) + '</button></div>';
+    $('sheet').innerHTML = h;
+  }
+  function refreshItemFoot() {
+    $('selQty').textContent = sel.qty;
+    $('selAdd').textContent = 'Add to order · ' + D.pesoShort(itemTotal());
+  }
+
+  function renderCart() {
+    var h = '<div class="sh-head"><div class="t"><b>Current order</b><span>' + cartCount() + (cartCount() === 1 ? ' item' : ' items') +
+      '</span></div><button class="icon-btn" data-close aria-label="Close">&times;</button></div><div class="sh-body">';
+    if (!cart.length) h += '<div class="empty">The order is empty.</div>';
+    cart.forEach(function (l, i) {
+      var meta = [];
+      if (l.opt) meta.push(l.opt);
+      (l.addons || []).forEach(function (a) { meta.push('+ ' + a.n); });
+      h += '<div class="line"><div class="l1"><b>' + esc(l.name) + '</b><span class="num">' + D.pesoShort(lineTotal(l)) + '</span></div>' +
+        (meta.length ? '<div class="meta">' + esc(meta.join(', ')) + '</div>' : '') +
+        (l.note ? '<div class="meta"><i>' + esc(l.note) + '</i></div>' : '') +
+        '<div class="l3"><div class="stepper"><button data-l="' + i + '" data-d="-1" aria-label="Fewer">&minus;</button><b class="num">' + l.qty +
+        '</b><button data-l="' + i + '" data-d="1" aria-label="More">+</button></div><span class="meta num">' + D.pesoShort(lineUnit(l)) + ' each</span></div></div>';
+    });
+    h += '</div>';
+    if (cart.length) {
+      h += '<div class="totalrow"><span>Total</span><span class="num">' + D.pesoShort(cartTotal()) + '</span></div>';
+      h += '<div class="sh-foot"><button class="text-btn danger" id="clearCart">Clear order</button><button class="primary" data-close>Keep ordering</button></div>';
+    } else {
+      h += '<div class="sh-foot"><button class="primary" data-close>Close</button></div>';
+    }
+    $('sheet').innerHTML = h;
+  }
+  $('openCart').onclick = function () { mode = 'cart'; renderCart(); openSheet(); };
+
+  $('sheet').addEventListener('click', function (e) {
+    if (e.target.closest('[data-close]')) { closeSheet(); return; }
+    var q = e.target.closest('button[data-q]');
+    if (q && mode === 'item') { sel.qty = Math.max(1, Math.min(99, sel.qty + (+q.getAttribute('data-q')))); refreshItemFoot(); return; }
+    var l = e.target.closest('button[data-l]');
+    if (l && mode === 'cart') {
+      var i = +l.getAttribute('data-l'); cart[i].qty += +l.getAttribute('data-d');
+      if (cart[i].qty <= 0) cart.splice(i, 1);
+      saveCart(); paintBar(); renderCart(); return;
+    }
+    if (e.target.id === 'clearCart') {
+      if (confirm('Clear the whole order?')) { cart = []; saveCart(); paintBar(); closeSheet(); }
+      return;
+    }
+    if (e.target.id === 'selAdd' && mode === 'item') {
+      var it = D.item(sel.id), o = it.options[sel.opt], ads = [], ids = [];
+      D.addonsFor(it.cat).forEach(function (g) {
+        g.items.forEach(function (a) {
+          var key = g.id + '|' + a.id;
+          if (sel.addons[key]) { ads.push({ n: a.name, p: Number(a.price) || 0 }); ids.push(key); }
+        });
+      });
+      ids.sort();
+      addLine({ name: it.name, opt: D.plainOption(it) ? '' : o.label, price: Number(o.price) || 0, addons: ads, note: sel.note.trim(), qty: sel.qty,
+                k: it.id + '|' + sel.opt + '|' + ids.join(',') + '|' + sel.note.trim() });
+      D.toast('Added ' + it.name); closeSheet();
+    }
+  });
+  $('sheet').addEventListener('change', function (e) {
+    if (mode !== 'item') return;
+    if (e.target.name === 'opt') sel.opt = +e.target.value;
+    else if (e.target.hasAttribute('data-a')) sel.addons[e.target.getAttribute('data-a')] = e.target.checked;
+    refreshItemFoot();
+  });
+  $('sheet').addEventListener('input', function (e) { if (mode === 'item' && e.target.id === 'selNote') sel.note = e.target.value; });
+
+  paintChips(); paintItems(); paintBar();
+  window.addEventListener('pageshow', function () { paintChips(); paintItems(); });
+
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>
