@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 Marina Bay's Cafe. All rights reserved. */
 /* Starting menu for Marina Bay's Cafe.
    This file is only the starting point. Once you change the menu inside the app (Menu editor),
    the app keeps its own copy on that device and uses that instead.

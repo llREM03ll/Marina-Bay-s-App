@@ -1,8 +1,15 @@
 <!DOCTYPE html>
+<!-- Copyright (c) 2026 Marina Bay's Cafe. All rights reserved. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="security.js"></script>
+<script src="firebase-config.js"></script>
+<script src="cloud.js" data-uses="menu"></script>
+<meta name="robots" content="noindex, nofollow">
+<meta name="author" content="Marina Bay's Cafe">
+<meta name="copyright" content="Copyright 2026 Marina Bay's Cafe. All rights reserved.">
 <title>Point of sale | Marina Bay's Cafe</title>
 <meta name="theme-color" content="#17435a">
 <link rel="icon" type="image/png" href="icons/favicon-32.png">
@@ -42,6 +49,8 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="receipt-logo.js"></script>
+<script src="printer.js"></script>
 <script src="menu-default.js"></script>
 <script src="app-data.js"></script>
 <script>
@@ -204,11 +213,34 @@
     h += '</div>';
     if (cart.length) {
       h += '<div class="totalrow"><span>Total</span><span class="num">' + D.pesoShort(cartTotal()) + '</span></div>';
-      h += '<div class="sh-foot"><button class="text-btn danger" id="clearCart">Clear order</button><button class="primary" data-close>Keep ordering</button></div>';
+      h += '<div class="sh-foot"><button class="text-btn danger" id="clearCart">Clear</button><button class="secondary" id="printOrder">Print order</button><button class="primary" data-close>Keep ordering</button></div>';
     } else {
       h += '<div class="sh-foot"><button class="primary" data-close>Close</button></div>';
     }
     $('sheet').innerHTML = h;
+  }
+  /* ---------- print ---------- */
+  function num(n) { return Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function orderReceipt(p) {
+    p.header('Order', new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }));
+    cart.forEach(function (l) {
+      p.row(l.qty + ' x ' + l.name, num(lineTotal(l)));
+      var extra = [];
+      if (l.opt) extra.push(l.opt);
+      (l.addons || []).forEach(function (a) { extra.push('+ ' + a.n); });
+      extra.forEach(function (x) { p.text('  ' + x, { indent: '    ' }); });
+      if (l.note) p.text('  Note: ' + l.note, { indent: '    ' });
+    });
+    p.rule();
+    p.row('Items', String(cartCount()));
+    p.row('TOTAL', num(cartTotal()), { b: true });
+    p.footer();
+  }
+  async function printOrder(btn) {
+    if (!cart.length) return;
+    var old = btn.textContent; btn.disabled = true; btn.textContent = 'Printing...';
+    try { var m = await MBPrinter.print('pos', orderReceipt); if (m) D.toast(m); }
+    finally { btn.disabled = false; btn.textContent = old; }
   }
   $('openCart').onclick = function () { mode = 'cart'; renderCart(); openSheet(); };
 
@@ -222,6 +254,7 @@
       if (cart[i].qty <= 0) cart.splice(i, 1);
       saveCart(); paintBar(); renderCart(); return;
     }
+    if (e.target.id === 'printOrder') { printOrder(e.target); return; }
     if (e.target.id === 'clearCart') {
       if (confirm('Clear the whole order?')) { cart = []; saveCart(); paintBar(); closeSheet(); }
       return;

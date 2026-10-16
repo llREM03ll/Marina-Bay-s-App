@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 Marina Bay's Cafe. All rights reserved. */
 /* Shared data for the point of sale, menu editor and recipes.
    The menu is data, not code. It starts from menu-default.js and, once edited in the app,
    is kept on the device under MENU_KEY. Recipes are kept under RECIPES_KEY. */
@@ -30,7 +31,7 @@
   }
   var menu = loadMenu();
   function saveMenu() { try { localStorage.setItem(MENU_KEY, JSON.stringify(menu)); return true; } catch (e) { return false; } }
-  function resetMenu() { menu = defaultMenu(); try { localStorage.removeItem(MENU_KEY); } catch (e) {} return menu; }
+  function resetMenu() { menu = defaultMenu(); saveMenu(); return menu; }
   function setMenu(m) { menu = m; menu.addonGroups = menu.addonGroups || []; return saveMenu(); }
   function getMenu() { return menu; }
 
@@ -77,7 +78,7 @@
   function saveInventory() { try { localStorage.setItem(INV_KEY, JSON.stringify(inventory)); return true; } catch (e) { return false; } }
   function getInventory() { return inventory; }
   function setInventory(v) { inventory = v; return saveInventory(); }
-  function resetInventory() { inventory = defaultInventory(); try { localStorage.removeItem(INV_KEY); } catch (e) {} return inventory; }
+  function resetInventory() { inventory = defaultInventory(); saveInventory(); return inventory; }
 
   /* ---------- files ---------- */
   function download(name, text, type) {

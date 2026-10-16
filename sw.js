@@ -1,4 +1,5 @@
-var CACHE = 'mbc-v7';
+/* Copyright (c) 2026 Marina Bay's Cafe. All rights reserved. */
+var CACHE = 'mbc-v10';
 var FILES = [
   './',
   './index.html',
@@ -14,6 +15,13 @@ var FILES = [
   './app-data.js',
   './menu-default.js',
   './printer.js',
+  './security.js',
+  './cloud.js',
+  './firebase-config.js',
+  './sync.html',
+  './security.html',
+  './receipt-logo.js',
+  './icons/receipt-logo.png',
   './manifest-money-counter.webmanifest',
   './manifest-expenses.webmanifest',
   './icons/favicon-32.png',
@@ -43,6 +51,9 @@ self.addEventListener('activate', function (e) {
 // Network first so updates show up, fall back to cache when offline
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
+  var u = new URL(e.request.url);
+  // only handle our own files and the Firebase library files; leave all Firebase network traffic alone
+  if (u.origin !== self.location.origin && u.hostname !== 'www.gstatic.com') return;
   e.respondWith(
     fetch(e.request).then(function (res) {
       var copy = res.clone();

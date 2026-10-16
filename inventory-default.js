@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 Marina Bay's Cafe. All rights reserved. */
 /* Starting inventory for Marina Bay's Cafe, from the count on October 14, 2026.
    This file is only the starting point. Once you change the list inside the app (Inventory),
    the app keeps its own copy on that device and uses that instead.

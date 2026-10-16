@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 Marina Bay's Cafe. All rights reserved. */
 /* Shared look for Marina Bay's Cafe apps (point of sale, menu, recipes). */
 :root { --ink: #1f1a17; --muted: #7a7068; --line: #e4dfd7; --soft: #f5f2ec; --teal: #17435a; --brown: #9b7952; --spend: #7d5f3c; --bad: #a4372b; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }

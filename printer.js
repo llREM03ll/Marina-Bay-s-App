@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 Marina Bay's Cafe. All rights reserved. */
 /* Receipt printing for Marina Bay's Cafe apps (shared by every page).
 
    Printers are set up once in printers.html, like the Printers screen in a POS app.
@@ -13,7 +14,7 @@
   var TZ = 'Asia/Manila';
 
   var TYPES = { ble: 'Bluetooth (BLE)', usb: 'USB', rawbt: 'RawBT app (Android)', dialog: 'Print dialog' };
-  var KINDS = { counter: 'Money counter receipts', expense: 'Expense receipts' };
+  var KINDS = { counter: 'Money counter receipts', expense: 'Expense receipts', pos: 'POS order receipts' };
   var BLE_SERVICES = [
     '000018f0-0000-1000-8000-00805f9b34fb', '0000ffe0-0000-1000-8000-00805f9b34fb',
     '0000ff00-0000-1000-8000-00805f9b34fb', '0000fff0-0000-1000-8000-00805f9b34fb',
@@ -31,15 +32,20 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function newPrinter(type) {
     return { id: uid(), name: '', type: type || (can.ble ? 'ble' : 'dialog'), width: 58, copies: 1, cut: false,
-             devName: '', usb: null, kinds: ['counter', 'expense'] };
+             devName: '', usb: null, kinds: ['counter', 'expense', 'pos'] };
   }
-  var state = { printers: [], receipt: { shop: "MARINA BAY'S CAFE", details: '', footer: '' } };
+  var state = { v: 2, printers: [], receipt: { shop: "MARINA BAY'S CAFE", details: '', footer: '', logo: true } };
   (function load() {
     try {
       var s = JSON.parse(localStorage.getItem(KEY));
       if (s && Array.isArray(s.printers)) {
         state.printers = s.printers;
         state.receipt = Object.assign(state.receipt, s.receipt || {});
+        if (!s.v || s.v < 2) { // POS receipts were added later: printers that took everything now take them too
+          state.printers.forEach(function (pr) {
+            if (pr.kinds.indexOf('counter') !== -1 && pr.kinds.indexOf('expense') !== -1 && pr.kinds.indexOf('pos') === -1) pr.kinds.push('pos');
+          });
+        }
         return;
       }
       var o = JSON.parse(localStorage.getItem(OLD_KEY)); // earlier single-printer settings
@@ -98,9 +104,11 @@
         L.push({ s: l + spaces(w - l.length - rt.length) + rt, b: !!(o && o.b) });
       },
       rule: function (ch) { L.push({ s: repeat(ch || '-', w), b: false }); },
+      logo: function () { if (window.MB_RECEIPT_LOGO && r.logo !== false) L.push({ s: '', b: false, img: true }); },
       feed: function (n) { for (var i = 0; i < (n || 1); i++) L.push({ s: '', b: false }); },
       // shop name, details, title, dates (uses the Receipt settings)
       header: function (title, dateText) {
+        p.logo();
         if (r.shop) p.center(r.shop, { b: true });
         String(r.details || '').split('\n').forEach(function (l) { if (l.trim()) p.center(l.trim()); });
         p.center(title);
@@ -118,13 +126,22 @@
     return L;
   }
   function preview(fn, width) {
-    return build(fn, width).map(function (l) { return l.s; }).join('\n');
+    return build(fn, width).map(function (l) { return l.img ? '[ logo ]' : l.s; }).join('\n');
+  }
+  // same as preview, but shows the real logo picture
+  function previewHtml(fn, width) {
+    function e(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    return build(fn, width).map(function (l) {
+      if (l.img) return '<img src="icons/receipt-logo.png" alt="Logo" style="display:block;margin:6px auto;width:' + Math.round(window.MB_RECEIPT_LOGO.w / 2) + 'px;image-rendering:pixelated">';
+      return (l.b ? '<b>' + e(l.s) + '</b>' : e(l.s)) + '\n';
+    }).join('');
   }
 
   /* ---------- ESC/POS bytes ---------- */
   function toBytes(lines, pr) {
     var out = [0x1b, 0x40], bold = false;
     lines.forEach(function (l) {
+      if (l.img) { out = out.concat(logoBytes()); return; }
       if (l.b !== bold) { bold = l.b; out.push(0x1b, 0x45, bold ? 1 : 0); }
       for (var i = 0; i < l.s.length; i++) out.push(l.s.charCodeAt(i));
       out.push(0x0a);
@@ -132,6 +149,14 @@
     if (bold) out.push(0x1b, 0x45, 0);
     if (pr.cut) out.push(0x1b, 0x64, 3, 0x1d, 0x56, 0x42, 0x00); // feed, partial cut
     else out.push(0x1b, 0x64, 4);                                  // feed
+    return out;
+  }
+  // logo as an ESC/POS raster picture (GS v 0), centered
+  function logoBytes() {
+    var g = window.MB_RECEIPT_LOGO, bin = atob(g.data), out = [0x1b, 0x61, 0x01], xb = g.w / 8;
+    out.push(0x1d, 0x76, 0x30, 0x00, xb & 255, xb >> 8, g.h & 255, g.h >> 8);
+    for (var i = 0; i < bin.length; i++) out.push(bin.charCodeAt(i));
+    out.push(0x0a, 0x1b, 0x61, 0x00);
     return out;
   }
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
@@ -229,7 +254,11 @@
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function printDialog(lines, width) {
     var pw = width === 80 ? '80mm' : '58mm';
-    var body = lines.map(function (l) { return l.b ? '<b>' + esc(l.s) + '</b>' : esc(l.s); }).join('\n');
+    var logoUrl = new URL('icons/receipt-logo.png', window.location.href).href, hasLogo = false;
+    var body = lines.map(function (l) {
+      if (l.img) { hasLogo = true; return '<img src="' + logoUrl + '" alt="" style="display:block;margin:0 auto 1mm;width:' + Math.round(window.MB_RECEIPT_LOGO.w / 8) + 'mm">'; }
+      return l.b ? '<b>' + esc(l.s) + '</b>' : esc(l.s);
+    }).join('\n');
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt</title><style>' +
       '@page{size:' + pw + ' auto;margin:2mm}html,body{margin:0;background:#fff}' +
       'pre{margin:0;color:#000;white-space:pre;font:2.5mm/1.3 "Courier New",Courier,monospace}b{font-weight:700}' +
@@ -241,7 +270,7 @@
     setTimeout(function () {
       try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) {}
       setTimeout(function () { f.remove(); }, 3000);
-    }, 250);
+    }, hasLogo ? 600 : 250);
   }
 
   /* ---------- sending ---------- */
@@ -288,6 +317,7 @@
 
   /* ---------- helpers for the settings page ---------- */
   function testFn(p) {
+    p.logo();
     p.center(state.receipt.shop || 'TEST', { b: true });
     p.center('Printer test');
     p.rule('=');
@@ -326,7 +356,7 @@
   })();
 
   window.MBPrinter = {
-    print: print, mount: mount, preview: preview, save: save, state: state, can: can,
+    print: print, mount: mount, preview: preview, previewHtml: previewHtml, save: save, state: state, can: can,
     TYPES: TYPES, KINDS: KINDS, newPrinter: newPrinter, pair: pair, test: test, isCancel: isCancel
   };
 })();

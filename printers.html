@@ -1,8 +1,15 @@
 <!DOCTYPE html>
+<!-- Copyright (c) 2026 Marina Bay's Cafe. All rights reserved. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="security.js"></script>
+<script src="firebase-config.js"></script>
+<script src="cloud.js" data-uses=""></script>
+<meta name="robots" content="noindex, nofollow">
+<meta name="author" content="Marina Bay's Cafe">
+<meta name="copyright" content="Copyright 2026 Marina Bay's Cafe. All rights reserved.">
 <title>Printers | Marina Bay's Cafe</title>
 <meta name="theme-color" content="#17435a">
 <link rel="icon" type="image/png" href="icons/favicon-32.png">
@@ -110,6 +117,7 @@
       <div class="sect" style="padding-bottom:2px">Print these receipts</div>
       <label class="check"><input type="checkbox" id="kCounter"> Money counter receipts</label>
       <label class="check"><input type="checkbox" id="kExpense"> Expense receipts</label>
+      <label class="check"><input type="checkbox" id="kPos"> POS order receipts</label>
       <div class="actions">
         <button class="primary" id="saveBtn">Save</button>
         <button class="secondary" id="testBtn">Print test</button>
@@ -123,6 +131,8 @@
       <div class="block"><label for="rShop">Shop name</label><input class="field" id="rShop" type="text" maxlength="40" style="max-width:none;width:100%;text-align:left" autocomplete="off"></div>
       <div class="block"><label for="rDetails">Details under the name</label><small>Address, phone, or anything else. One line per row.</small><textarea class="field" id="rDetails" rows="3" maxlength="200"></textarea></div>
       <div class="block"><label for="rFooter">Message at the bottom</label><small>For example, a thank you line.</small><textarea class="field" id="rFooter" rows="2" maxlength="120"></textarea></div>
+      <label class="check"><input type="checkbox" id="rLogo"> Print the logo at the top</label>
+      <p class="help">The logo is printed as a small black and white picture. If your printer prints strange characters at the top, turn this off.</p>
       <div class="frow"><label for="pvWidth">Preview paper</label>
         <select class="field" id="pvWidth"><option value="58">58 mm</option><option value="80">80 mm</option></select></div>
       <div class="sect">Preview</div>
@@ -137,6 +147,7 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="receipt-logo.js"></script>
 <script src="printer.js"></script>
 <script>
 (function () {
@@ -164,7 +175,7 @@
   document.querySelectorAll('.tab').forEach(function (t) { t.onclick = function () { show(t.getAttribute('data-v')); }; });
 
   /* ---------- list ---------- */
-  function kindsText(p) { return p.kinds.length ? p.kinds.map(function (k) { return k === 'counter' ? 'Counter' : 'Expenses'; }).join(', ') : 'Not printing anything'; }
+  function kindsText(p) { var n = { counter: 'Counter', expense: 'Expenses', pos: 'POS' }; return p.kinds.length ? p.kinds.map(function (k) { return n[k] || k; }).join(', ') : 'Not printing anything'; }
   function paintList() {
     var h = '';
     S.printers.forEach(function (p) {
@@ -195,6 +206,7 @@
     $('fCut').checked = !!p.cut;
     $('kCounter').checked = p.kinds.indexOf('counter') !== -1;
     $('kExpense').checked = p.kinds.indexOf('expense') !== -1;
+    $('kPos').checked = p.kinds.indexOf('pos') !== -1;
     $('delBtn').style.display = fresh ? 'none' : '';
     paintType();
     show('edit');
@@ -216,6 +228,7 @@
     ed.kinds = [];
     if ($('kCounter').checked) ed.kinds.push('counter');
     if ($('kExpense').checked) ed.kinds.push('expense');
+    if ($('kPos').checked) ed.kinds.push('pos');
   }
   $('fType').onchange = function () {
     var old = ed.type; readForm();
@@ -261,8 +274,9 @@
     p.row('TOTAL MONEY', '2,350.00', { b: true });
     p.footer();
   }
-  function paintPreview() { $('preview').textContent = P.preview(sample, +$('pvWidth').value); }
+  function paintPreview() { $('preview').innerHTML = P.previewHtml(sample, +$('pvWidth').value); }
   function paintReceipt() {
+    $('rLogo').checked = S.receipt.logo !== false;
     $('rShop').value = S.receipt.shop || ''; $('rDetails').value = S.receipt.details || ''; $('rFooter').value = S.receipt.footer || '';
     paintPreview();
   }
@@ -270,6 +284,7 @@
     $(m[0]).addEventListener('input', function () { S.receipt[m[1]] = $(m[0]).value; P.save(); paintPreview(); });
   });
   $('pvWidth').onchange = paintPreview;
+  $('rLogo').onchange = function () { S.receipt.logo = $('rLogo').checked; P.save(); paintPreview(); };
 
   paintList();
 })();
