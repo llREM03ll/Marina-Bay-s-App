@@ -8,6 +8,7 @@
 .pos-right { display: none; }
 
 @media (min-width: 768px) {
+  .primary { white-space: nowrap; }
   body .app { max-width: 1180px; }
   body.pg-narrow .app { max-width: 680px; }
   body.pg-home .app { max-width: 900px; }
@@ -29,7 +30,9 @@
   body.pg-pos .pos-right { display: flex; flex-direction: column; flex: none; width: clamp(330px, 34vw, 420px); min-height: 0; border-left: 1px solid var(--line); background: #fff; }
   body.pg-pos .pos-right .sh-head { padding-top: 16px; }
   body.pg-pos .pos-right .sh-body { flex: 1; overflow-y: auto; }
-  body.pg-pos .pos-right .sh-foot { padding-bottom: 14px; }
+  body.pg-pos .pos-right .sh-foot { padding-bottom: 14px; flex-wrap: wrap; }
+  body.pg-pos .pos-right #printOrder { flex: 1; }
+  body.pg-pos .pos-right #chargeBtn { order: 3; flex: 1 1 100%; }
   body.pg-pos .pos-right .empty { padding: 28px 16px; }
   body.pg-pos .cartbar { display: none; }
   body.pg-pos .chip { padding: 5px 12px; font-size: 13.5px; }

@@ -64,6 +64,12 @@
   .exp-sum .ln span:first-child { color: var(--muted); }
   .exp-sum .ln.strong { font-weight: 650; }
   .exp-sum .ln.strong span:first-child { color: var(--ink); }
+  .exp-block { padding: 0 0 4px; border-top: 6px solid var(--soft); margin-top: 10px; }
+  .exp-h { padding: 12px 16px 4px; font-weight: 650; }
+  .exp-item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .exp-item small { display: block; font-size: 12px; color: var(--muted); }
+  .exp-none { padding: 4px 16px 10px; font-size: 14px; color: var(--muted); }
+  .exp-block .exp-sum { padding-top: 0; }
   .exp-link { display: inline-block; margin: 12px 16px 0; font-size: 14px; color: var(--teal); }
 
   /* views */
@@ -208,13 +214,18 @@
         <label for="online">Online payment</label>
         <div class="money-input"><span>₱</span><input id="online" class="num" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div>
       </div>
-      <div class="exp-sum" id="expSum">
-        <div class="ln"><span>Expenses paid in cash</span><span class="num" id="expCash">₱0.00</span></div>
-        <div class="ln"><span>Expenses paid online</span><span class="num" id="expOnline">₱0.00</span></div>
-        <div class="ln strong"><span>Cash after expenses</span><span class="num" id="cashAfter">₱0.00</span></div>
+      <div class="exp-block" id="expBlock">
+        <div class="exp-h">Expenses</div>
+        <div id="expList"></div>
+        <div class="exp-sum" id="expSum">
+          <div class="ln"><span>Paid in cash</span><span class="num" id="expCash">₱0.00</span></div>
+          <div class="ln"><span>Paid online</span><span class="num" id="expOnline">₱0.00</span></div>
+          <div class="ln strong"><span>Cash after expenses</span><span class="num" id="cashAfter">₱0.00</span></div>
+        </div>
       </div>
       <button class="mb-print" id="printBtn">Print receipt</button>
       <a class="exp-link" href="expenses.html">Add or view expenses for this day</a>
+      <a class="exp-link" href="shift.html">End shift and print the shift report</a>
       <button class="link-btn" id="clear">Clear this day</button>
     </section>
 
@@ -334,11 +345,12 @@
   });
   $('online').addEventListener('focus', function (e) { e.target.select(); });
 
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function expensesOf(k) {
-    var out = { cash: 0, online: 0 };
+    var out = { cash: 0, online: 0, list: [] };
     try {
       var s = JSON.parse(localStorage.getItem('marinabays_expenses_v1')) || {};
-      ((s.days || {})[k] || []).forEach(function (x) { out[x.src === 'online' ? 'online' : 'cash'] += x.amt || 0; });
+      ((s.days || {})[k] || []).forEach(function (x) { out[x.src === 'online' ? 'online' : 'cash'] += x.amt || 0; out.list.push(x); });
     } catch (e) {}
     return out;
   }
@@ -348,6 +360,9 @@
     $('expCash').textContent = peso(ex.cash);
     $('expOnline').textContent = peso(ex.online);
     $('cashAfter').textContent = peso(cashOf(rec) - ex.cash);
+    $('expList').innerHTML = ex.list.length ? ex.list.map(function (x) {
+      return '<div class="exp-item"><div>' + esc(x.cat) + '<small>' + (x.src === 'online' ? 'Online' : 'Cash') + (x.note ? ' · ' + esc(x.note) : '') + '</small></div><span class="num">' + peso(x.amt) + '</span></div>';
+    }).join('') : '<div class="exp-none">No expenses for this day.</div>';
     DENOMS.forEach(function (d) {
       var v = d * (rec.counts[d] || 0), el = $('sub' + d);
       el.textContent = peso(v); el.classList.toggle('zero', v === 0);
@@ -473,10 +488,15 @@
     p.row('Cash on hand', num(cash));
     p.row('Online payment', num(online));
     p.row('TOTAL MONEY', num(cash + online), { b: true });
-    if (ex.cash || ex.online) {
+    if (ex.list.length) {
+      p.rule(); p.center('Expenses'); p.rule();
+      ex.list.forEach(function (x) {
+        p.row(x.cat, num(x.amt));
+        p.text('  ' + (x.src === 'online' ? 'Online' : 'Cash') + (x.note ? ' - ' + x.note : ''), { indent: '    ' });
+      });
+      p.row('Paid in cash', num(ex.cash));
+      p.row('Paid online', num(ex.online));
       p.rule();
-      p.row('Expenses (cash)', num(ex.cash));
-      p.row('Expenses (online)', num(ex.online));
       p.row('CASH AFTER EXPENSES', num(cash - ex.cash), { b: true });
     }
     p.footer();

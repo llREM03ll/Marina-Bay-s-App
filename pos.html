@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script src="security.js"></script>
 <script src="firebase-config.js"></script>
-<script src="cloud.js" data-uses="menu"></script>
+<script src="cloud.js" data-uses="menu,sales,shifts"></script>
 <meta name="robots" content="noindex, nofollow">
 <meta name="author" content="Marina Bay's Cafe">
 <meta name="copyright" content="Copyright 2026 Marina Bay's Cafe. All rights reserved.">
@@ -27,6 +27,15 @@
   .line .meta { font-size: 13px; color: var(--muted); margin-top: 2px; }
   .line .l3 { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
   .totalrow { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 16px; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--line); }
+  .seg2 { display: flex; border: 1.5px solid #c9c1b5; border-radius: 6px; overflow: hidden; }
+  .seg2 button { border: none; background: #fff; font: inherit; font-size: 15px; padding: 8px 16px; color: var(--ink); cursor: pointer; }
+  .seg2 button + button { border-left: 1.5px solid #c9c1b5; }
+  .seg2 button.on { background: var(--teal); color: #fff; font-weight: 650; }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 16px 12px; border-bottom: 1px solid var(--line); }
+  .quick button { border: 1.5px solid #c9c1b5; background: #fff; border-radius: 6px; font: inherit; font-size: 14px; padding: 7px 12px; cursor: pointer; color: var(--ink); }
+  .big { font-size: 30px; font-weight: 700; text-align: center; padding: 18px 16px 4px; }
+  .bigsub { text-align: center; color: var(--muted); padding: 0 16px 16px; }
+  .help2 { padding: 12px 16px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); }
   .note-in { width: 100%; height: 42px; border: 1.5px solid #c9c1b5; border-radius: 6px; padding: 0 10px; font: inherit; }
   .note-in:focus { outline: none; border-color: var(--teal); }
 </style>
@@ -37,7 +46,7 @@
   <div class="top">
     <a href="index.html" aria-label="Home" style="display:flex"><img src="icons/logo-64.png" alt=""></a>
     <div><b>Marina Bay's Cafe</b><span class="sub">Point of sale</span></div>
-    <nav class="apps" aria-label="Apps"><a href="menu.html">Menu</a><a href="index.html">All apps</a></nav>
+    <nav class="apps" aria-label="Apps"><a href="shift.html">Shift</a><a href="menu.html">Menu</a><a href="index.html">All apps</a></nav>
   </div>
 
   <div class="pos-body">
@@ -58,6 +67,7 @@
 <script src="printer.js"></script>
 <script src="menu-default.js"></script>
 <script src="app-data.js"></script>
+<script src="shift-lib.js"></script>
 <script>
 (function () {
   var D = window.MBData, esc = D.esc, $ = function (id) { return document.getElementById(id); };
@@ -162,7 +172,7 @@
     if (!it.options || !it.options.length) { D.toast('No price set for this item'); return; }
     var groups = D.addonsFor(it.cat).filter(function (g) { return g.items && g.items.length; });
     if (it.options.length === 1 && !groups.length) {
-      addLine({ name: it.name, opt: D.plainOption(it) ? '' : it.options[0].label, price: Number(it.options[0].price) || 0, addons: [], note: '', qty: 1, k: it.id + '|0||' });
+      addLine({ name: it.name, opt: D.plainOption(it) ? '' : it.options[0].label, price: Number(it.options[0].price) || 0, addons: [], note: '', qty: 1, cat: it.cat, k: it.id + '|0||' });
       D.toast('Added ' + it.name); return;
     }
     mode = 'item'; sel = { id: id, opt: 0, addons: {}, note: '', qty: 1 };
@@ -220,9 +230,8 @@
     h += '</div>';
     if (cart.length) {
       h += '<div class="totalrow"><span>Total</span><span class="num">' + D.pesoShort(cartTotal()) + '</span></div>';
-      h += panel
-        ? '<div class="sh-foot"><button class="text-btn danger" id="clearCart">Clear</button><button class="primary" id="printOrder">Print order</button></div>'
-        : '<div class="sh-foot"><button class="text-btn danger" id="clearCart">Clear</button><button class="secondary" id="printOrder">Print order</button><button class="primary" data-close>Keep ordering</button></div>';
+      h += '<div class="sh-foot"><button class="text-btn danger" id="clearCart">Clear</button><button class="secondary" id="printOrder">Print order</button>' +
+        '<button class="primary" id="chargeBtn">Charge ' + D.pesoShort(cartTotal()) + '</button></div>';
     } else if (!panel) {
       h += '<div class="sh-foot"><button class="primary" data-close>Close</button></div>';
     }
@@ -241,6 +250,7 @@
       if (cart[i].qty <= 0) cart.splice(i, 1);
       saveCart(); paintBar(); return;
     }
+    if (e.target.id === 'chargeBtn') { openCharge(); return; }
     if (e.target.id === 'printOrder') { printOrder(e.target); return; }
     if (e.target.id === 'clearCart' && confirm('Clear the whole order?')) { cart = []; saveCart(); paintBar(); }
   });
@@ -279,6 +289,7 @@
       if (cart[i].qty <= 0) cart.splice(i, 1);
       saveCart(); paintBar(); renderCart(); return;
     }
+    if (e.target.id === 'chargeBtn') { openCharge(); return; }
     if (e.target.id === 'printOrder') { printOrder(e.target); return; }
     if (e.target.id === 'clearCart') {
       if (confirm('Clear the whole order?')) { cart = []; saveCart(); paintBar(); closeSheet(); }
@@ -293,7 +304,7 @@
         });
       });
       ids.sort();
-      addLine({ name: it.name, opt: D.plainOption(it) ? '' : o.label, price: Number(o.price) || 0, addons: ads, note: sel.note.trim(), qty: sel.qty,
+      addLine({ name: it.name, opt: D.plainOption(it) ? '' : o.label, price: Number(o.price) || 0, addons: ads, note: sel.note.trim(), qty: sel.qty, cat: it.cat,
                 k: it.id + '|' + sel.opt + '|' + ids.join(',') + '|' + sel.note.trim() });
       D.toast('Added ' + it.name); closeSheet();
     }
@@ -305,6 +316,102 @@
     refreshItemFoot();
   });
   $('sheet').addEventListener('input', function (e) { if (mode === 'item' && e.target.id === 'selNote') sel.note = e.target.value; });
+
+  /* ---------- charge ---------- */
+  var S = window.MBShift, pay = null, lastSale = null;
+  function money(n) { return D.peso(n); }
+  function payNums() {
+    var gross = S.r2(cartTotal()), v = parseFloat(pay.disc) || 0;
+    var d = pay.dt === 'pct' ? gross * Math.min(Math.max(v, 0), 100) / 100 : Math.min(Math.max(v, 0), gross);
+    d = S.r2(d);
+    var net = S.r2(gross - d), tend = pay.method === 'cash' ? (pay.tend === '' ? net : (parseFloat(pay.tend) || 0)) : net;
+    return { gross: gross, d: d, net: net, tend: tend, change: S.r2(tend - net) };
+  }
+  function openCharge() {
+    if (!cart.length) return;
+    if (!S.current()) { openStart(); return; }
+    pay = { dt: 'peso', disc: '', method: 'cash', tend: '' };
+    mode = 'pay'; renderPay(); openSheet();
+  }
+  function renderPay() {
+    var n = payNums(), cur = S.current();
+    var h = '<div class="sh-head"><div class="t"><b>Charge</b><span>Shift ' + cur.no + ' · ' + cartCount() + (cartCount() === 1 ? ' item' : ' items') +
+      '</span></div><button class="icon-btn" data-close aria-label="Close">&times;</button></div><div class="sh-body">';
+    h += '<div class="totalrow"><span>Total</span><span class="num">' + money(n.gross) + '</span></div>';
+    h += '<div class="frow"><label for="payDisc">Discount</label><div class="seg2"><button data-dt="peso" class="' + (pay.dt === 'peso' ? 'on' : '') + '">₱</button>' +
+      '<button data-dt="pct" class="' + (pay.dt === 'pct' ? 'on' : '') + '">%</button></div>' +
+      '<input class="field num" id="payDisc" style="max-width:110px" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" value="' + esc(pay.disc) + '"></div>';
+    h += '<div class="totalrow"><span>To pay</span><span class="num" id="payNet">' + money(n.net) + '</span></div>';
+    h += '<div class="frow"><label>Paid with</label><div class="seg2"><button data-pm="cash" class="' + (pay.method === 'cash' ? 'on' : '') + '">Cash</button>' +
+      '<button data-pm="ewallet" class="' + (pay.method === 'ewallet' ? 'on' : '') + '">E-wallet</button></div></div>';
+    h += '<div id="cashBlock"' + (pay.method === 'cash' ? '' : ' hidden') + '><div class="frow"><label for="payTend">Cash received</label>' +
+      '<input class="field num" id="payTend" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Exact" value="' + esc(pay.tend) + '"></div>' +
+      '<div class="quick"><button data-qc="exact">Exact</button><button data-qc="100">100</button><button data-qc="200">200</button><button data-qc="500">500</button><button data-qc="1000">1,000</button></div>' +
+      '<div class="totalrow"><span id="chgLabel">Change</span><span class="num" id="payChange"></span></div></div>';
+    h += '</div><div class="sh-foot"><button class="text-btn" data-close>Cancel</button><button class="primary" id="payGo"></button></div>';
+    $('sheet').innerHTML = h; refreshPay();
+  }
+  function refreshPay() {
+    var n = payNums();
+    $('payNet').textContent = money(n.net);
+    $('payGo').textContent = 'Complete sale · ' + D.pesoShort(n.net);
+    if (pay.method === 'cash') {
+      $('chgLabel').textContent = n.change < 0 ? 'Still needed' : 'Change';
+      $('payChange').textContent = money(Math.abs(n.change));
+      $('payChange').style.color = n.change < 0 ? 'var(--bad)' : '';
+    }
+  }
+  function completeSale() {
+    var n = payNums();
+    if (pay.method === 'cash' && n.tend < n.net) { D.toast('Cash received is less than the total'); return; }
+    var sale = S.makeSale(cart, { disc: n.d, method: pay.method, tend: n.tend });
+    if (!S.addSale(sale)) { D.toast('Could not save the sale. Storage may be full.'); return; }
+    lastSale = sale; cart = []; saveCart(); paintBar();
+    mode = 'done'; renderDone();
+  }
+  function renderDone() {
+    var s = lastSale;
+    var h = '<div class="sh-head"><div class="t"><b>Sale saved</b><span>Order ' + s.n + ' · Shift ' + s.shift + '</span></div><button class="icon-btn" data-close aria-label="Close">&times;</button></div><div class="sh-body">' +
+      '<div class="big num">' + money(s.net) + '</div><div class="bigsub">' + (s.pay === 'cash' ? 'Cash · Change ' + money(s.change) : 'E-wallet') + (s.disc ? ' · Discount ' + money(s.disc) : '') + '</div></div>' +
+      '<div class="sh-foot"><button class="secondary" id="printSale">Print receipt</button><button class="primary" data-close>New order</button></div>';
+    $('sheet').innerHTML = h;
+  }
+  async function printSale(btn) {
+    var old = btn.textContent; btn.disabled = true; btn.textContent = 'Printing...';
+    try { var m = await MBPrinter.print('pos', function (p) { S.saleReceipt(p, lastSale); }); if (m) D.toast(m); }
+    finally { btn.disabled = false; btn.textContent = old; }
+  }
+  function openStart() {
+    mode = 'start';
+    var last = S.lastActual();
+    $('sheet').innerHTML = '<div class="sh-head"><div class="t"><b>Start a shift</b><span>Needed before a sale can be saved</span></div><button class="icon-btn" data-close aria-label="Close">&times;</button></div><div class="sh-body">' +
+      '<div class="help2">Sales, cash, and expenses are totaled for each shift. Count the cash in the drawer and enter it as the starting cash.</div>' +
+      '<div class="frow"><label for="stCash">Starting cash</label><input class="field num" id="stCash" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="' + esc(last) + '"></div>' +
+      '<div class="frow"><label for="stBy">Opened by</label><input class="field" id="stBy" type="text" maxlength="30" placeholder="Name" value="' + esc(S.lastUser()) + '" autocomplete="off"></div>' +
+      '</div><div class="sh-foot"><button class="text-btn" data-close>Cancel</button><button class="primary" id="startGo">Start shift and charge</button></div>';
+    openSheet();
+  }
+  function doStart() {
+    var v = $('stCash').value.trim();
+    if (v === '' || isNaN(parseFloat(v)) || parseFloat(v) < 0) { D.toast('Enter the starting cash'); $('stCash').focus(); return; }
+    S.start(parseFloat(v), $('stBy').value);
+    openCharge();
+  }
+  $('sheet').addEventListener('click', function (e) {
+    var t = e.target;
+    if (mode === 'pay') {
+      var dt = t.closest('button[data-dt]'); if (dt) { pay.dt = dt.getAttribute('data-dt'); renderPay(); return; }
+      var pm = t.closest('button[data-pm]'); if (pm) { pay.method = pm.getAttribute('data-pm'); renderPay(); return; }
+      var qc = t.closest('button[data-qc]'); if (qc) { var v = qc.getAttribute('data-qc'); pay.tend = v === 'exact' ? '' : v; renderPay(); return; }
+      if (t.id === 'payGo') completeSale();
+    } else if (mode === 'start') { if (t.id === 'startGo') doStart(); }
+    else if (mode === 'done') { if (t.id === 'printSale') printSale(t); }
+  });
+  $('sheet').addEventListener('input', function (e) {
+    if (mode !== 'pay') return;
+    if (e.target.id === 'payDisc') { pay.disc = e.target.value; refreshPay(); }
+    else if (e.target.id === 'payTend') { pay.tend = e.target.value; refreshPay(); }
+  });
 
   paintChips(); paintItems(); paintBar();
   window.addEventListener('pageshow', function () { paintChips(); paintItems(); });

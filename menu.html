@@ -71,6 +71,7 @@
       <div class="frow"><label for="cName">Name</label><input class="field" id="cName" type="text" maxlength="40" autocomplete="off"></div>
       <div class="frow"><label for="cGroup">Group</label><input class="field" id="cGroup" type="text" list="groups" maxlength="20" placeholder="Drinks, Food..." autocomplete="off"><datalist id="groups"><option value="Drinks"><option value="Food"></datalist></div>
       <div class="frow"><label for="cNote">Note</label><input class="field" id="cNote" type="text" maxlength="50" placeholder="Optional" autocomplete="off"></div>
+      <div class="frow"><label for="cLid">Lid</label><select class="field" id="cLid"><option value="flat">Flat lid</option><option value="dome">Dome lid (round, frappe)</option><option value="none">No lid (food)</option></select></div>
       <div class="block"><label for="cSizes">Usual sizes</label><small>Separate with commas. New items in this section start with these sizes.</small><input class="field" id="cSizes" type="text" placeholder="16 oz iced, 22 oz iced" autocomplete="off"></div>
       <div class="actions"><button class="primary" id="saveCat">Save</button><button class="text-btn danger" id="delCat">Delete</button></div>
     </section>
@@ -258,6 +259,7 @@
     else { cEd = { id: D.uid('cat'), name: '', group: 'Drinks', note: '', sizes: [] }; cNew = true; }
     $('catTitle').textContent = cNew ? 'Add section' : 'Edit section';
     $('cName').value = cEd.name; $('cGroup').value = cEd.group || ''; $('cNote').value = cEd.note || ''; $('cSizes').value = (cEd.sizes || []).join(', ');
+    $('cLid').value = cEd.lid || (/food/i.test(cEd.group || '') ? 'none' : /blend|frappe/i.test((cEd.name || '') + ' ' + (cEd.note || '')) ? 'dome' : 'flat');
     $('delCat').style.display = cNew ? 'none' : '';
     show('cat');
   }
@@ -265,6 +267,7 @@
     var name = $('cName').value.trim();
     if (!name) { D.toast('Enter a name'); $('cName').focus(); return; }
     cEd.name = name; cEd.group = $('cGroup').value.trim(); cEd.note = $('cNote').value.trim();
+    cEd.lid = $('cLid').value;
     cEd.sizes = $('cSizes').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
     var idx = -1; M.categories.forEach(function (x, n) { if (x.id === cEd.id) idx = n; });
     if (idx === -1) M.categories.push(cEd); else M.categories[idx] = cEd;

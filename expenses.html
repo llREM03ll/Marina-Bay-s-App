@@ -347,7 +347,8 @@
     var amt = Math.round((+$('amt').value) * 100) / 100;
     if (!(amt > 0)) { toast('Enter an amount'); $('amt').focus(); return; }
     var cat = $('cat').value === '__new' ? store.cats[0] : $('cat').value;
-    var entry = { id: editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), amt: amt, cat: cat, note: $('note').value.trim(), src: src };
+    var prev = editingId ? dayList(selected).filter(function (x) { return x.id === editingId; })[0] : null;
+    var entry = { id: editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), amt: amt, cat: cat, note: $('note').value.trim(), src: src, t: (prev && prev.t) || Date.now() };
     var list = store.days[selected] || (store.days[selected] = []);
     if (editingId) {
       for (var i = 0; i < list.length; i++) if (list[i].id === editingId) list[i] = entry;

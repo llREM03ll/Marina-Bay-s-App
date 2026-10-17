@@ -14,7 +14,7 @@
   var TZ = 'Asia/Manila';
 
   var TYPES = { ble: 'Bluetooth (BLE)', usb: 'USB', rawbt: 'RawBT app (Android)', dialog: 'Print dialog' };
-  var KINDS = { counter: 'Money counter receipts', expense: 'Expense receipts', pos: 'POS order receipts' };
+  var KINDS = { counter: 'Money counter receipts', expense: 'Expense receipts', pos: 'POS order receipts', shift: 'Shift reports' };
   var BLE_SERVICES = [
     '000018f0-0000-1000-8000-00805f9b34fb', '0000ffe0-0000-1000-8000-00805f9b34fb',
     '0000ff00-0000-1000-8000-00805f9b34fb', '0000fff0-0000-1000-8000-00805f9b34fb',
@@ -32,18 +32,21 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function newPrinter(type) {
     return { id: uid(), name: '', type: type || (can.ble ? 'ble' : 'dialog'), width: 58, copies: 1, cut: false,
-             devName: '', usb: null, kinds: ['counter', 'expense', 'pos'] };
+             devName: '', usb: null, kinds: ['counter', 'expense', 'pos', 'shift'] };
   }
-  var state = { v: 2, printers: [], receipt: { shop: "MARINA BAY'S CAFE", details: '', footer: '', logo: true } };
+  var state = { v: 3, printers: [], receipt: { shop: "MARINA BAY'S CAFE", details: '', footer: '', logo: true } };
   (function load() {
     try {
       var s = JSON.parse(localStorage.getItem(KEY));
       if (s && Array.isArray(s.printers)) {
         state.printers = s.printers;
         state.receipt = Object.assign(state.receipt, s.receipt || {});
-        if (!s.v || s.v < 2) { // POS receipts were added later: printers that took everything now take them too
+        if (!s.v || s.v < 3) { // POS and shift receipts were added later: printers that took everything now take them too
           state.printers.forEach(function (pr) {
-            if (pr.kinds.indexOf('counter') !== -1 && pr.kinds.indexOf('expense') !== -1 && pr.kinds.indexOf('pos') === -1) pr.kinds.push('pos');
+            if (pr.kinds.indexOf('counter') !== -1 && pr.kinds.indexOf('expense') !== -1) {
+              if (pr.kinds.indexOf('pos') === -1) pr.kinds.push('pos');
+              if (pr.kinds.indexOf('shift') === -1) pr.kinds.push('shift');
+            }
           });
         }
         return;

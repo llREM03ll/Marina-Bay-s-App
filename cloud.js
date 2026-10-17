@@ -92,6 +92,32 @@
       },
       from: function (m) { return collect(m, 'day:'); }
     },
+    sales: {
+      key: 'marinabays_sales_v1', coll: 'sync_sales',
+      to: function (o) { var m = {}; (o.sales || []).forEach(function (s) { m['sale:' + s.id] = S(s); }); return m; },
+      from: function (m) {
+        var c = collect(m, 'sale:'), list = [];
+        Object.keys(c).forEach(function (id) { list.push(c[id]); });
+        list.sort(function (a, b) { return a.t - b.t; });
+        return { sales: list };
+      }
+    },
+    shifts: {
+      key: 'marinabays_shifts_v1', coll: 'sync_shifts',
+      to: function (o) {
+        var m = {};
+        (o.hist || []).forEach(function (h) { m['hist:' + h.no] = S(h); });
+        m.cur = S(o.cur || null); m.meta = S({ nextNo: o.nextNo || 1 });
+        return m;
+      },
+      from: function (m) {
+        var c = collect(m, 'hist:'), list = [], top = 0;
+        Object.keys(c).forEach(function (no) { list.push(c[no]); if (c[no].no > top) top = c[no].no; });
+        list.sort(function (a, b) { return a.no - b.no; });
+        var cur = m.cur ? JSON.parse(m.cur) : null, next = m.meta ? JSON.parse(m.meta).nextNo || 1 : 1;
+        return { nextNo: Math.max(next, top + 1, cur ? cur.no + 1 : 1), cur: cur, hist: list };
+      }
+    },
     expenses: {
       key: 'marinabays_expenses_v1', coll: 'sync_expenses',
       to: function (o) {

@@ -6,23 +6,24 @@
    categories   : the sections of the menu. "sizes" is the list of size names offered when you add a new item.
    items        : each item has one or more "options" (a size or version, with its price).
                   best = best seller, soldOut = hidden from ordering, check = price still needs checking.
+   lid          : which lid the section uses: "flat", "dome" (round, for frappe) or "none". Hot drinks always use the black lid.
    addonGroups  : the "Ship Upgrades". "cats" says which categories can use that group.
    To add or remove things by hand, copy one line and change it. Keep every id unique. */
 window.MB_DEFAULT_MENU = {
   categories: [
-    {"id": "sailors-delight", "name": "Sailor's Delight", "group": "Drinks", "note": "Must try!", "sizes": ["16 oz iced", "22 oz iced"]},
-    {"id": "captains-brew", "name": "Captain's Brew", "group": "Drinks", "note": "Espresso & Coffee", "sizes": ["16 oz iced", "22 oz iced", "12 oz hot"]},
-    {"id": "safe-harbour", "name": "Safe Harbour", "group": "Drinks", "note": "Non-Coffee & Milk", "sizes": ["16 oz iced", "22 oz iced", "12 oz hot"]},
-    {"id": "green-lagoon", "name": "Green Lagoon", "group": "Drinks", "note": "Matcha", "sizes": ["16 oz iced", "22 oz iced", "12 oz hot"]},
-    {"id": "bay-breeze", "name": "Bay Breeze Blends", "group": "Drinks", "note": "Ice-Blended/Frappe", "sizes": ["16 oz iced", "22 oz iced"]},
-    {"id": "shoreline-sips", "name": "Shoreline Sips", "group": "Drinks", "note": "Carbonated", "sizes": ["16 oz iced", "22 oz iced"]},
-    {"id": "pearls-legends", "name": "Ocean Pearls: Legends of the Deep", "group": "Drinks", "note": "Flavoured Milk Tea", "sizes": ["12 oz iced", "16 oz iced", "22 oz iced"]},
-    {"id": "pearls-classics", "name": "Ocean Pearls: Coastal Classics", "group": "Drinks", "note": "Classic Milk Tea", "sizes": ["12 oz iced", "16 oz iced", "22 oz iced"]},
-    {"id": "island-coolers", "name": "Island Coolers", "group": "Drinks", "note": "Fruit Tea", "sizes": ["16 oz iced", "22 oz iced"]},
-    {"id": "main-deck", "name": "Main Deck", "group": "Food", "note": "Pasta & Mains", "sizes": ["Regular"]},
-    {"id": "wings-of-the-sea", "name": "Wings of the Sea", "group": "Food", "note": "Chicken Wings Platter", "sizes": ["Regular"]},
-    {"id": "pier-bites", "name": "Pier Bites", "group": "Food", "note": "Pika-Pika | Good for Sharing", "sizes": ["Regular"]},
-    {"id": "portside-plates", "name": "Portside Plates", "group": "Food", "note": "Rice Meals & Bowls", "sizes": ["Regular"]},
+    {"id": "sailors-delight", "name": "Sailor's Delight", "group": "Drinks", "note": "Must try!", "sizes": ["16 oz iced", "22 oz iced"], "lid": "flat"},
+    {"id": "captains-brew", "name": "Captain's Brew", "group": "Drinks", "note": "Espresso & Coffee", "sizes": ["16 oz iced", "22 oz iced", "12 oz hot"], "lid": "flat"},
+    {"id": "safe-harbour", "name": "Safe Harbour", "group": "Drinks", "note": "Non-Coffee & Milk", "sizes": ["16 oz iced", "22 oz iced", "12 oz hot"], "lid": "flat"},
+    {"id": "green-lagoon", "name": "Green Lagoon", "group": "Drinks", "note": "Matcha", "sizes": ["16 oz iced", "22 oz iced", "12 oz hot"], "lid": "flat"},
+    {"id": "bay-breeze", "name": "Bay Breeze Blends", "group": "Drinks", "note": "Ice-Blended/Frappe", "sizes": ["16 oz iced", "22 oz iced"], "lid": "dome"},
+    {"id": "shoreline-sips", "name": "Shoreline Sips", "group": "Drinks", "note": "Carbonated", "sizes": ["16 oz iced", "22 oz iced"], "lid": "flat"},
+    {"id": "pearls-legends", "name": "Ocean Pearls: Legends of the Deep", "group": "Drinks", "note": "Flavoured Milk Tea", "sizes": ["12 oz iced", "16 oz iced", "22 oz iced"], "lid": "flat"},
+    {"id": "pearls-classics", "name": "Ocean Pearls: Coastal Classics", "group": "Drinks", "note": "Classic Milk Tea", "sizes": ["12 oz iced", "16 oz iced", "22 oz iced"], "lid": "flat"},
+    {"id": "island-coolers", "name": "Island Coolers", "group": "Drinks", "note": "Fruit Tea", "sizes": ["16 oz iced", "22 oz iced"], "lid": "flat"},
+    {"id": "main-deck", "name": "Main Deck", "group": "Food", "note": "Pasta & Mains", "sizes": ["Regular"], "lid": "none"},
+    {"id": "wings-of-the-sea", "name": "Wings of the Sea", "group": "Food", "note": "Chicken Wings Platter", "sizes": ["Regular"], "lid": "none"},
+    {"id": "pier-bites", "name": "Pier Bites", "group": "Food", "note": "Pika-Pika | Good for Sharing", "sizes": ["Regular"], "lid": "none"},
+    {"id": "portside-plates", "name": "Portside Plates", "group": "Food", "note": "Rice Meals & Bowls", "sizes": ["Regular"], "lid": "none"},
   ],
   items: [
     // Sailor's Delight

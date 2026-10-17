@@ -119,6 +119,7 @@
       <label class="check"><input type="checkbox" id="kCounter"> Money counter receipts</label>
       <label class="check"><input type="checkbox" id="kExpense"> Expense receipts</label>
       <label class="check"><input type="checkbox" id="kPos"> POS order receipts</label>
+      <label class="check"><input type="checkbox" id="kShift"> Shift reports</label>
       <div class="actions">
         <button class="primary" id="saveBtn">Save</button>
         <button class="secondary" id="testBtn">Print test</button>
@@ -176,7 +177,7 @@
   document.querySelectorAll('.tab').forEach(function (t) { t.onclick = function () { show(t.getAttribute('data-v')); }; });
 
   /* ---------- list ---------- */
-  function kindsText(p) { var n = { counter: 'Counter', expense: 'Expenses', pos: 'POS' }; return p.kinds.length ? p.kinds.map(function (k) { return n[k] || k; }).join(', ') : 'Not printing anything'; }
+  function kindsText(p) { var n = { counter: 'Counter', expense: 'Expenses', pos: 'POS', shift: 'Shift' }; return p.kinds.length ? p.kinds.map(function (k) { return n[k] || k; }).join(', ') : 'Not printing anything'; }
   function paintList() {
     var h = '';
     S.printers.forEach(function (p) {
@@ -208,6 +209,7 @@
     $('kCounter').checked = p.kinds.indexOf('counter') !== -1;
     $('kExpense').checked = p.kinds.indexOf('expense') !== -1;
     $('kPos').checked = p.kinds.indexOf('pos') !== -1;
+    $('kShift').checked = p.kinds.indexOf('shift') !== -1;
     $('delBtn').style.display = fresh ? 'none' : '';
     paintType();
     show('edit');
@@ -230,6 +232,7 @@
     if ($('kCounter').checked) ed.kinds.push('counter');
     if ($('kExpense').checked) ed.kinds.push('expense');
     if ($('kPos').checked) ed.kinds.push('pos');
+    if ($('kShift').checked) ed.kinds.push('shift');
   }
   $('fType').onchange = function () {
     var old = ed.type; readForm();

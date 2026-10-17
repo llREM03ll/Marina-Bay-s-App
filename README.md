@@ -7,7 +7,8 @@ Private tools for running the cafe. They run in a web browser and can be added t
 | Page | What it does |
 |---|---|
 | `index.html` | Home page with links to everything |
-| `pos.html` | Point of sale: take orders from the menu and print them |
+| `pos.html` | Point of sale: take orders, charge (cash or e-wallet), print receipts |
+| `shift.html` | Start and end a shift, sales list, shift report with expenses, cups and lids |
 | `money-counter.html` | Daily cash count |
 | `expenses.html` | Daily expenses |
 | `inventory.html` | Stock list |
